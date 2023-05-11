@@ -13,6 +13,7 @@ from time import sleep
 from typing import List, Tuple, Union
 from .ftdi import Ftdi
 from .bits import BitSequence
+import string
 
 
 class JtagError(Exception):
@@ -482,16 +483,16 @@ class JtagEngine:
         """Return a list of supported state name"""
         return [str(s) for s in self._sm.states]
 
-    def change_state(self, statename) -> None:
+    def change_state(self, statename, select:bool = False) -> None:
         """Advance the TAP controller to the defined state"""
         # find the state machine path to move to the new instruction
         path = self._sm.find_path(statename)
         # convert the path into an event sequence
         events = self._sm.get_events(path)
         # update the remote device tap controller
-        self._ctrl.write_tms(events)
+        self._ctrl.write_tms(events, select)
         # update the current state machine's state
-        self._sm.handle_events(events)
+        self._sm.handle_events(events) 
 
     def go_idle(self) -> None:
         """Change the current TAP controller to the IDLE state"""
@@ -500,8 +501,8 @@ class JtagEngine:
     def write_ir(self, instruction) -> None:
         """Change the current instruction of the TAP controller"""
         self.change_state('shift_ir')
-        self._ctrl.write(instruction)
-        self.change_state('update_ir')
+        self._ctrl.write(instruction, 1)
+        #self.change_state('run_test_idle')
 
     def capture_ir(self) -> None:
         """Capture the current instruction from the TAP controller"""
@@ -510,10 +511,11 @@ class JtagEngine:
     def write_dr(self, data) -> None:
         """Change the data register of the TAP controller"""
         self.change_state('shift_dr')
-        self._ctrl.write(data)
-        self.change_state('update_dr')
+        self._ctrl.write(data, 2)
+        #self.change_state('run_test_idle')
 
-    def read_dr(self, length: int) -> BitSequence:
+    #def read_dr(self, length: int) -> BitSequence:
+    def read_dr(self, length: int) -> string:
         """Read the data register from the TAP controller"""
         self.change_state('shift_dr')
         data = self._ctrl.read(length)
